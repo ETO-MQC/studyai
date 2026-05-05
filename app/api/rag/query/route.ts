@@ -1,7 +1,8 @@
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { generateAiText } from "@/lib/ai-client";
+import type { AiRuntimeConfig } from "@/lib/ai-config";
 import { buildFileQaPrompt, getSystemPrompt } from "@/lib/prompts";
 import { getRelevantContext, localFileAnswer } from "@/lib/rag";
+import { trimForPrompt } from "@/lib/utils";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,11 @@ function textStream(text: string) {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { fileId?: string; question?: string };
+    const body = (await req.json()) as {
+      fileId?: string;
+      question?: string;
+      aiConfig?: Partial<AiRuntimeConfig>;
+    };
     if (!body.fileId || !body.question?.trim()) {
       return Response.json({ error: "缺少 fileId 或 question。" }, { status: 400 });
     }
@@ -28,16 +33,17 @@ export async function POST(req: Request) {
     if (!result) {
       return Response.json({ error: "未找到对应文件。" }, { status: 404 });
     }
-    if (!process.env.OPENAI_API_KEY) {
-      return textStream(localFileAnswer(result.context, body.question));
-    }
-    const stream = await streamText({
-      model: openai("gpt-4o"),
+
+    const answer = await generateAiText({
+      config: body.aiConfig,
       system: getSystemPrompt("file_qa"),
-      messages: [{ role: "user", content: buildFileQaPrompt(result.context, body.question) }],
+      messages: [{ role: "user", content: trimForPrompt(buildFileQaPrompt(result.context, body.question)) }],
       temperature: 0.2
     });
-    return stream.toTextStreamResponse();
+    if (!answer) {
+      return textStream(localFileAnswer(result.context, body.question));
+    }
+    return textStream(answer);
   } catch (error) {
     const message = error instanceof Error ? error.message : "未知错误";
     return Response.json({ error: message }, { status: 500 });

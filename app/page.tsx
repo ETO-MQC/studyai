@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatArea } from "@/components/chat/ChatArea";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { MobileNav } from "@/components/layout/MobileNav";
@@ -13,6 +13,7 @@ import { NewSpaceModal } from "@/components/spaces/NewSpaceModal";
 import { SpacesList } from "@/components/spaces/SpacesList";
 import { SettingsModal } from "@/components/settings/SettingsModal";
 import { Modal } from "@/components/ui/Modal";
+import { AI_CONFIG_STORAGE_KEY, DEFAULT_AI_CONFIG, normalizeAiConfig, type AiRuntimeConfig } from "@/lib/ai-config";
 import type {
   ChatMessage,
   ChatMode,
@@ -66,6 +67,31 @@ export default function Page() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const [spaces, setSpaces] = useState<Space[]>(initialSpaces);
+  const [aiConfig, setAiConfig] = useState<AiRuntimeConfig>(DEFAULT_AI_CONFIG);
+
+  useEffect(() => {
+    function readConfig() {
+      try {
+        const raw = window.localStorage.getItem(AI_CONFIG_STORAGE_KEY);
+        setAiConfig(normalizeAiConfig(raw ? JSON.parse(raw) : DEFAULT_AI_CONFIG));
+      } catch {
+        setAiConfig(DEFAULT_AI_CONFIG);
+      }
+    }
+
+    function handleConfigChanged(event: Event) {
+      const detail = (event as CustomEvent<Partial<AiRuntimeConfig>>).detail;
+      setAiConfig(normalizeAiConfig(detail));
+    }
+
+    readConfig();
+    window.addEventListener("learnkata-ai-config-changed", handleConfigChanged);
+    window.addEventListener("storage", readConfig);
+    return () => {
+      window.removeEventListener("learnkata-ai-config-changed", handleConfigChanged);
+      window.removeEventListener("storage", readConfig);
+    };
+  }, []);
 
   function resetModeArtifacts() {
     setQuiz(null);
@@ -119,6 +145,7 @@ export default function Page() {
         body: JSON.stringify({
           mode,
           fileId: activeFile?.fileId,
+          aiConfig,
           messages: [...messages, userMessage].map(({ role, content }) => ({ role, content }))
         })
       });
@@ -160,7 +187,7 @@ export default function Page() {
       const response = await fetch("/api/quiz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, count: 5 })
+        body: JSON.stringify({ content, count: 5, aiConfig })
       });
       const data = (await response.json()) as QuizPayload & { error?: string };
       if (!response.ok) throw new Error(data.error || "生成测验失败");
@@ -188,7 +215,7 @@ export default function Page() {
       const response = await fetch("/api/flashcard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, count: 8 })
+        body: JSON.stringify({ content, count: 8, aiConfig })
       });
       const data = (await response.json()) as FlashcardPayload & { error?: string };
       if (!response.ok) throw new Error(data.error || "生成闪卡失败");

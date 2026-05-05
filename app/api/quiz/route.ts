@@ -1,5 +1,5 @@
-import { openai } from "@ai-sdk/openai";
-import { generateText } from "ai";
+import { generateAiText } from "@/lib/ai-client";
+import type { AiRuntimeConfig } from "@/lib/ai-config";
 import { getSystemPrompt } from "@/lib/prompts";
 import type { QuizPayload } from "@/lib/types";
 import { safeJsonParse, trimForPrompt } from "@/lib/utils";
@@ -35,22 +35,27 @@ function fallbackQuiz(content: string): QuizPayload {
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as { content?: string; count?: number };
+    const body = (await req.json()) as {
+      content?: string;
+      count?: number;
+      aiConfig?: Partial<AiRuntimeConfig>;
+    };
     const content = body.content ?? "";
     if (!content.trim()) {
       return Response.json({ error: "缺少出题材料。" }, { status: 400 });
     }
-    if (!process.env.OPENAI_API_KEY) {
-      return Response.json(fallbackQuiz(content));
-    }
 
-    const result = await generateText({
-      model: openai("gpt-4o"),
+    const text = await generateAiText({
+      config: body.aiConfig,
       system: getSystemPrompt("quiz"),
       prompt: `请基于以下材料生成 ${body.count ?? 5} 道题：\n\n${trimForPrompt(content)}`,
       temperature: 0.1
     });
-    const parsed = safeJsonParse<QuizPayload>(result.text);
+    if (!text) {
+      return Response.json(fallbackQuiz(content));
+    }
+
+    const parsed = safeJsonParse<QuizPayload>(text);
     if (!parsed?.questions?.length) {
       return Response.json({ error: "模型未返回合法题目 JSON。" }, { status: 502 });
     }

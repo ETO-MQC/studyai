@@ -1,5 +1,5 @@
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { generateAiText } from "@/lib/ai-client";
+import type { AiRuntimeConfig } from "@/lib/ai-config";
 import { buildFileQaPrompt, getSystemPrompt } from "@/lib/prompts";
 import { getRelevantContext, localFileAnswer } from "@/lib/rag";
 import type { ChatMode } from "@/lib/types";
@@ -11,9 +11,15 @@ function localResponse(mode: ChatMode, question: string) {
   const lead =
     mode === "teach"
       ? "先给结论：这个问题可以拆成定义、例子、步骤和误区来理解。"
-      : "先给结论：当前没有配置 OPENAI_API_KEY，所以我先给本地兜底回答。";
+      : "先给结论：当前没有可用的 AI API 配置，所以我先给本地兜底回答。";
 
-  return `${lead}\n\n你刚才的问题是：${question || "（空问题）"}\n\n- 如果要启用真实 AI 流式回答，请在 .env.local 中设置 OPENAI_API_KEY。\n- 当前界面、模式切换、资料问答、测验和闪卡仍可用于本地流程验证。\n- 建议下一步：补充密钥后重新运行 npm run dev。`;
+  return `${lead}
+
+你刚才的问题是：${question || "（空问题）"}
+
+- 要启用真实 AI 回答，请在设置里的“AI 接入”保存 API Key、Base URL 和模型名。
+- 也可以在服务端环境变量里设置 AI_API_KEY / AI_BASE_URL / AI_MODEL，或继续使用 OPENAI_API_KEY。
+- 当前界面、模式切换、资料问答、测验和闪卡仍可用于本地流程验证。`;
 }
 
 function textStream(text: string) {
@@ -39,16 +45,14 @@ export async function POST(req: Request) {
       messages?: Array<{ role: "user" | "assistant"; content: string }>;
       mode?: ChatMode;
       fileId?: string;
+      aiConfig?: Partial<AiRuntimeConfig>;
     };
     const messages = body.messages ?? [];
     const mode = body.mode ?? "chat";
     const question = getLastUserMessage(messages);
 
     if (mode === "quiz" || mode === "flashcard") {
-      return Response.json(
-        { error: "quiz 和 flashcard 请使用独立接口。" },
-        { status: 400 }
-      );
+      return Response.json({ error: "quiz 和 flashcard 请使用独立接口。" }, { status: 400 });
     }
 
     if (mode === "file_qa") {
@@ -60,24 +64,20 @@ export async function POST(req: Request) {
         return Response.json({ error: "未找到对应文件。" }, { status: 404 });
       }
       const prompt = buildFileQaPrompt(result.context, question);
-      if (!process.env.OPENAI_API_KEY) {
-        return textStream(localFileAnswer(result.context, question));
-      }
-      const stream = await streamText({
-        model: openai("gpt-4o"),
+      const answer = await generateAiText({
+        config: body.aiConfig,
         system: getSystemPrompt("file_qa"),
         messages: [{ role: "user", content: trimForPrompt(prompt) }],
         temperature: 0.2
       });
-      return stream.toTextStreamResponse();
+      if (!answer) {
+        return textStream(localFileAnswer(result.context, question));
+      }
+      return textStream(answer);
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      return textStream(localResponse(mode, question));
-    }
-
-    const stream = await streamText({
-      model: openai("gpt-4o"),
+    const answer = await generateAiText({
+      config: body.aiConfig,
       system: getSystemPrompt(mode),
       messages: messages.map((message) => ({
         role: message.role,
@@ -86,7 +86,11 @@ export async function POST(req: Request) {
       temperature: 0.2
     });
 
-    return stream.toTextStreamResponse();
+    if (!answer) {
+      return textStream(localResponse(mode, question));
+    }
+
+    return textStream(answer);
   } catch (error) {
     const message = error instanceof Error ? error.message : "未知错误";
     return Response.json({ error: message }, { status: 500 });
