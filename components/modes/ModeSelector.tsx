@@ -40,7 +40,7 @@ interface ModeSelectorProps {
 
 export function ModeSelector({ value, onChange }: ModeSelectorProps) {
   return (
-    <div className="flex gap-1 overflow-x-auto rounded-app border border-line bg-white p-1">
+    <div className="lk-scrollbar flex gap-1 overflow-x-auto rounded-md border border-border bg-background p-1">
       {modes.map((mode) => {
         const Icon = mode.icon;
         const active = value === mode.value;
@@ -49,9 +49,7 @@ export function ModeSelector({ value, onChange }: ModeSelectorProps) {
             key={mode.value}
             className={cn(
               "lk-focus inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm transition",
-              active
-                ? "bg-neutral-950 text-white"
-                : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950"
+              active ? "bg-foreground text-background" : "text-muted hover:bg-muted hover:text-foreground"
             )}
             type="button"
             onClick={() => onChange(mode.value)}

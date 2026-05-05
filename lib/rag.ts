@@ -94,5 +94,9 @@ export function getRelevantContext(fileId: string, question: string, topK = 4) {
 
 export function localFileAnswer(context: string, question: string) {
   if (!context.trim()) return "文件中未找到相关信息。";
-  return `基于已上传资料，最相关的内容如下：\n\n${context}\n\n针对问题“${question}”，请优先依据以上片段判断；如果片段仍不足以回答，则文件中未找到相关信息。`;
+  return `基于已上传资料，最相关的内容如下：
+
+${context}
+
+针对问题“${question}”，请优先依据以上片段判断；如果片段仍不足以回答，则文件中未找到相关信息。`;
 }

@@ -13,12 +13,14 @@ export function ChatArea({ messages }: { messages: ChatMessage[] }) {
 
   if (!messages.length) {
     return (
-      <div className="flex h-full items-center justify-center p-8 text-center">
-        <div className="max-w-lg">
-          <p className="text-sm font-medium text-neutral-500">LearnKata</p>
-          <h1 className="mt-2 text-2xl font-semibold text-neutral-950">今天想学点什么？</h1>
-          <p className="mt-3 text-sm leading-6 text-neutral-600">
-            你可以直接提问，或切换到讲解、总结、出题、闪卡、文件问答等模式。
+      <div className="flex h-full items-center justify-center px-6 py-10 text-center">
+        <div className="max-w-2xl">
+          <p className="text-base text-muted-foreground">LearnKata</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-normal text-foreground md:text-4xl">
+            今天想学点什么？
+          </h1>
+          <p className="mt-4 text-base leading-7 text-muted-foreground">
+            先查本地资料库，资料不足时再让云端模型补充。也可以切换讲解、总结、出题、闪卡、笔记和文件问答。
           </p>
         </div>
       </div>
@@ -26,7 +28,7 @@ export function ChatArea({ messages }: { messages: ChatMessage[] }) {
   }
 
   return (
-    <div className="lk-scrollbar flex h-full flex-col gap-5 overflow-y-auto px-4 py-6 md:px-8">
+    <div className="lk-scrollbar mx-auto flex h-full w-full max-w-3xl flex-col gap-5 overflow-y-auto px-4 py-8 md:px-6">
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}

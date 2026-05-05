@@ -72,6 +72,15 @@ export function SettingsPanel() {
             />
             启用浏览器保存的 API 配置
           </label>
+          <label className="flex items-center gap-2 text-sm text-neutral-800">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-neutral-950"
+              checked={config.cloudFallback}
+              onChange={(event) => update({ cloudFallback: event.target.checked })}
+            />
+            本地资料不足时允许云端模型补充
+          </label>
 
           <label className="grid gap-1 text-sm">
             API 类型
@@ -164,6 +173,18 @@ export function SettingsPanel() {
                   />
                 </label>
               </div>
+              <label className="grid gap-1 text-sm">
+                本地命中阈值
+                <input
+                  className="lk-focus rounded-app border border-line px-3 py-2"
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={config.localRelevanceThreshold}
+                  onChange={(event) => update({ localRelevanceThreshold: Number(event.target.value) })}
+                />
+              </label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="grid gap-1 text-sm">
                   Max tokens

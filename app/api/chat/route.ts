@@ -22,6 +22,25 @@ function localResponse(mode: ChatMode, question: string) {
 - 当前界面、模式切换、资料问答、测验和闪卡仍可用于本地流程验证。`;
 }
 
+function buildHybridPrompt(context: string, question: string, cloudFallback: boolean, isStrongMatch: boolean) {
+  if (isStrongMatch || !cloudFallback) {
+    return buildFileQaPrompt(context, question);
+  }
+
+  return `请先参考本地资料库片段回答。如果本地片段不足以回答，请使用你的通用知识补充，并在回答中明确分成“本地资料依据”和“云端补充”两部分。
+
+【本地资料片段】
+${context || "本地资料没有检索到足够相关的片段。"}
+
+【用户问题】
+${question}
+
+要求：
+1. 本地资料能回答的部分优先引用本地资料。
+2. 本地资料不足、矛盾或没有命中时，可以用模型知识补充。
+3. 不要假装云端补充来自本地资料。`;
+}
+
 function textStream(text: string) {
   const encoder = new TextEncoder();
   return new Response(
@@ -63,7 +82,10 @@ export async function POST(req: Request) {
       if (!result) {
         return Response.json({ error: "未找到对应文件。" }, { status: 404 });
       }
-      const prompt = buildFileQaPrompt(result.context, question);
+      const normalizedConfig = body.aiConfig;
+      const threshold = normalizedConfig?.localRelevanceThreshold ?? 0.08;
+      const cloudFallback = normalizedConfig?.cloudFallback ?? true;
+      const prompt = buildHybridPrompt(result.context, question, cloudFallback, result.maxScore >= threshold);
       const answer = await generateAiText({
         config: body.aiConfig,
         system: getSystemPrompt("file_qa"),
@@ -74,6 +96,27 @@ export async function POST(req: Request) {
         return textStream(localFileAnswer(result.context, question));
       }
       return textStream(answer);
+    }
+
+    if (body.fileId && question) {
+      const result = getRelevantContext(body.fileId, question);
+      if (result) {
+        const threshold = body.aiConfig?.localRelevanceThreshold ?? 0.08;
+        const cloudFallback = body.aiConfig?.cloudFallback ?? true;
+        const hybridQuestion = buildHybridPrompt(
+          result.context,
+          question,
+          cloudFallback,
+          result.maxScore >= threshold
+        );
+        const answer = await generateAiText({
+          config: body.aiConfig,
+          system: getSystemPrompt(mode),
+          messages: [{ role: "user", content: trimForPrompt(hybridQuestion, 8000) }],
+          temperature: 0.2
+        });
+        if (answer) return textStream(answer);
+      }
     }
 
     const answer = await generateAiText({

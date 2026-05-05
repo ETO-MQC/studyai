@@ -21,6 +21,8 @@ export interface AiRuntimeConfig {
   extraHeaders: string;
   maxTokens: number;
   temperature: number;
+  cloudFallback: boolean;
+  localRelevanceThreshold: number;
 }
 
 export const AI_CONFIG_STORAGE_KEY = "learnkata.ai.runtime-config.v1";
@@ -79,7 +81,9 @@ export const DEFAULT_AI_CONFIG: AiRuntimeConfig = {
   authHeaderPrefix: "Bearer",
   extraHeaders: "",
   maxTokens: 1600,
-  temperature: 0.2
+  temperature: 0.2,
+  cloudFallback: true,
+  localRelevanceThreshold: 0.08
 };
 
 export function getAiPreset(id: string) {
@@ -114,7 +118,11 @@ export function normalizeAiConfig(value: Partial<AiRuntimeConfig> | null | undef
     authHeaderPrefix: (value?.authHeaderPrefix ?? DEFAULT_AI_CONFIG.authHeaderPrefix).trim(),
     extraHeaders: value?.extraHeaders || "",
     maxTokens: Number(value?.maxTokens || DEFAULT_AI_CONFIG.maxTokens),
-    temperature: Number(value?.temperature ?? DEFAULT_AI_CONFIG.temperature)
+    temperature: Number(value?.temperature ?? DEFAULT_AI_CONFIG.temperature),
+    cloudFallback: value?.cloudFallback ?? DEFAULT_AI_CONFIG.cloudFallback,
+    localRelevanceThreshold: Number(
+      value?.localRelevanceThreshold ?? DEFAULT_AI_CONFIG.localRelevanceThreshold
+    )
   };
 }
 

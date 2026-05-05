@@ -39,27 +39,29 @@ export function FileUploader({ activeFile, onUploaded }: FileUploaderProps) {
 
   return (
     <div className="space-y-4">
-      <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-line bg-neutral-50 px-4 py-8 text-center transition hover:bg-neutral-100">
-        <Upload className="h-7 w-7 text-neutral-500" />
-        <span className="mt-3 text-sm font-medium text-neutral-950">
-          {loading ? "上传中..." : "上传 txt / md 文本资料"}
+      <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-neutral-50 px-4 py-10 text-center transition hover:bg-neutral-100">
+        <Upload className="h-7 w-7 text-muted-foreground" />
+        <span className="mt-3 text-sm font-medium text-foreground">
+          {loading ? "上传中..." : "上传 txt / md / csv 本地资料"}
         </span>
-        <span className="mt-1 text-xs text-neutral-500">本地内存索引，刷新服务后会清空</span>
+        <span className="mt-1 text-xs text-muted-foreground">
+          当前是内存索引，服务重启后会清空；适合本地知识库问答。
+        </span>
         <input className="sr-only" type="file" accept=".txt,.md,.csv" onChange={handleFile} />
       </label>
       {activeFile && (
-        <div className="flex items-center gap-3 rounded-app border border-line bg-white p-3">
-          <FileText className="h-5 w-5 text-brand-600" />
+        <div className="flex items-center gap-3 rounded-md border border-border bg-background p-3">
+          <FileText className="h-5 w-5 text-blue-600" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-neutral-950">{activeFile.name}</p>
-            <p className="text-xs text-neutral-500">{activeFile.chunkCount} 个文本片段</p>
+            <p className="truncate text-sm font-medium text-foreground">{activeFile.name}</p>
+            <p className="text-xs text-muted-foreground">{activeFile.chunkCount} 个文本片段</p>
           </div>
           <Button variant="secondary" onClick={() => onUploaded(activeFile)}>
             使用中
           </Button>
         </div>
       )}
-      {error && <p className="rounded-app bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     </div>
   );
 }

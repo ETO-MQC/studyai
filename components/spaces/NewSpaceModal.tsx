@@ -1,8 +1,8 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import type { Space } from "@/lib/types";
 import { newId } from "@/lib/utils";
 

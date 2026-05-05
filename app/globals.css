@@ -6,12 +6,12 @@
 
 :root {
   color-scheme: light;
-  --background: #f7f7f5;
-  --foreground: #171717;
+  --background: #ffffff;
+  --foreground: #0f172a;
   --panel: #ffffff;
-  --sidebar: #f4f3ef;
-  --muted: #737373;
-  --border: #e7e5df;
+  --sidebar: #fafafa;
+  --muted: #6b7280;
+  --border: #e5e7eb;
   --accent: #4f6df5;
 }
 
@@ -51,7 +51,19 @@ select {
 
   .lk-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: #d8d6cf transparent;
+    scrollbar-color: #8c8c8c transparent;
+  }
+
+  .lk-scrollbar::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .lk-scrollbar::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: #8c8c8c;
+    background-clip: padding-box;
   }
 
   .lk-prose {
