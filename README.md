@@ -1,6 +1,6 @@
 # AI Tutor / LearnKata
 
-本项目是基于 `beginprompt.md` 与 `design-reference/` 参考页面落地的本地优先中文 AI 学习助手。
+本地优先中文 AI 学习助手。
 
 ## 功能
 
