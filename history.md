@@ -2,6 +2,47 @@
 
 ---
 
+## 2026-05-11 可运行性验证与学习功能差距梳理
+
+### 用户意图
+
+用户要求按照 `CLAUDE.md` 验证项目可运行性，并对照原始 LearnKata 网站检查主要学习功能缺口，用未实现项更新 `plan.md`。
+
+### 完成内容
+
+- 阅读 `CLAUDE.md`、`plan.md`、`history.md`、`package.json`、核心页面/API 文件和 `design-reference/` 文件列表。
+- 确认 `rg` 在当前环境执行被拒绝，改用 PowerShell 文件枚举和 `Select-String`。
+- 访问原始 LearnKata 公开站点并结合本地设计快照，抽取核心学习能力差距。
+- 运行项目验证：
+  - `npm.cmd run typecheck` 通过。
+  - `npm.cmd run build` 通过。
+  - `npm.cmd run start -- -p 3000` 启动成功，`http://localhost:3000` 返回 200。
+  - `/api/chat` 无 Key 兜底回答通过。
+  - `/api/quiz` 与 `/api/flashcard` 返回结构化 JSON。
+  - `/api/rag/upload` 用 Node `fetch/FormData/File` 进行 multipart 上传成功，`/api/rag/query` 返回基于上传文本的答案。
+- 更新 `plan.md`：新增 2026-05-11 验证结论、学习功能差距和“阶段 7：补齐核心学习闭环”。
+
+### 关键结论
+
+- 当前项目可本地启动和构建，核心聊天、测验、闪卡、文本资料上传和本地 RAG 问答的最小链路可运行。
+- 项目仍是 LearnKata 初版近似实现，缺失原站主要学习闭环：PDF/音频/链接/LMS 导入、来源页码引用、文件阅读器、资料级结构化笔记、roadmap、mindmap、学习进度/掌握度、持久化空间/历史/资料库。
+- `plan.md` 与 `history.md` 旧内容存在编码损坏，本轮只追加新的 UTF-8 记录，避免重写历史内容造成额外风险。
+
+### 验证结果
+
+- 通过：`typecheck`、`build`、首页 HTTP 200、chat/quiz/flashcard/RAG API 最小行为验证。
+- 未验证：真实外部 AI Key 端到端质量、浏览器桌面/移动端截图、原站登录后完整内部流程。
+
+### 遗留问题与下一步
+
+1. 优先实现 PDF 导入、来源元数据、引用返回和资料阅读器，补齐文件问答可信度。
+2. 基于来源生成结构化笔记、测验、闪卡和 mindmap，并保存到空间。
+3. 增加学习计划、掌握度、错题/薄弱点和复习调度。
+4. 设计持久化层，避免刷新或服务重启丢失学习数据。
+5. 后续需要做浏览器视觉检查和真实 AI provider 验证。
+
+---
+
 ## 2026-05-05 前端批注修正
 
 ### 用户意图
