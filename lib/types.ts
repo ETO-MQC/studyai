@@ -16,6 +16,7 @@ export interface ChatMessage {
   id: string;
   role: Exclude<ChatRole, "system">;
   content: string;
+  citations?: Citation[];
 }
 
 export interface QuizQuestion {
@@ -43,6 +44,31 @@ export interface SourceFile {
   fileId: string;
   name: string;
   chunkCount: number;
+}
+
+export interface SourceDocument {
+  sourceId: string;
+  fileName: string;
+  mimeType: string;
+  chunkCount: number;
+  createdAt: number;
+}
+
+export interface SourceChunk {
+  sourceId: string;
+  fileName: string;
+  chunkIndex: number;
+  locator: string;
+  text: string;
+}
+
+export interface Citation {
+  sourceId: string;
+  fileName: string;
+  chunkIndex: number;
+  locator: string;
+  excerpt: string;
+  score: number;
 }
 
 export interface Space {

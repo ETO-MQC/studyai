@@ -39,6 +39,7 @@ import { NotesPanel } from "@/components/modes/NotesPanel";
 import { QuizRenderer } from "@/components/modes/QuizRenderer";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { FileUploader } from "@/components/sources/FileUploader";
+import { SourceReader } from "@/components/sources/SourceReader";
 import { NewSpaceModal } from "@/components/spaces/NewSpaceModal";
 import { SpacesList } from "@/components/spaces/SpacesList";
 import { Button } from "@/components/ui/Button";
@@ -51,6 +52,7 @@ import {
 import type {
   ChatMessage,
   ChatMode,
+  Citation,
   FlashcardPayload,
   QuizPayload,
   SourceFile,
@@ -115,6 +117,7 @@ export default function Page() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [username, setUsername] = useState("mqcingetooo1");
+  const [readerCitation, setReaderCitation] = useState<Citation | null>(null);
 
   useEffect(() => {
     function readConfig() {
@@ -240,13 +243,26 @@ export default function Page() {
         const data = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(data?.error || "请求失败");
       }
-      await readTextStream(response, (chunk) => {
+
+      if (mode === "file_qa") {
+        const data = (await response.json()) as { answer?: string; citations?: Citation[]; error?: string };
+        if (data.error) throw new Error(data.error);
         setMessages((prev) =>
           prev.map((message) =>
-            message.id === assistantId ? { ...message, content: message.content + chunk } : message
+            message.id === assistantId
+              ? { ...message, content: data.answer || "", citations: data.citations }
+              : message
           )
         );
-      });
+      } else {
+        await readTextStream(response, (chunk) => {
+          setMessages((prev) =>
+            prev.map((message) =>
+              message.id === assistantId ? { ...message, content: message.content + chunk } : message
+            )
+          );
+        });
+      }
     } catch (error) {
       setMessages((prev) =>
         prev.map((message) =>
@@ -348,7 +364,7 @@ export default function Page() {
               />
               <div className="lk-scrollbar min-h-0 flex-1 overflow-y-auto">
                 {messages.length ? (
-                  <ChatArea messages={messages} />
+                  <ChatArea messages={messages} onCitationClick={setReaderCitation} />
                 ) : (
                   <EmptyChat
                     username={username}
@@ -395,6 +411,30 @@ export default function Page() {
                 {notesSource && <NotesPanel source={notesSource} />}
               </aside>
             )}
+
+            {readerCitation && (
+              <div className="hidden w-[380px] shrink-0 lg:block">
+                <SourceReader
+                  citation={readerCitation}
+                  onClose={() => setReaderCitation(null)}
+                  onAsk={(text) => {
+                    setMode("file_qa");
+                    setInput(`请基于以下片段回答：\n\n${text}`);
+                    setReaderCitation(null);
+                  }}
+                  onGenerateNotes={(text) => {
+                    setMode("notes");
+                    setInput(text);
+                    setReaderCitation(null);
+                  }}
+                  onGenerateQuiz={(text) => {
+                    setMode("quiz");
+                    setInput(`请基于以下内容出一组测验：\n\n${text}`);
+                    setReaderCitation(null);
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -431,7 +471,7 @@ export default function Page() {
                     ))
                   ) : (
                     <p className="rounded-md border border-dashed border-border p-3 text-sm text-muted-foreground">
-                      暂无本地知识库。上传 txt / md / csv 后即可选择。
+                      暂无本地知识库。上传 txt / md / csv / pdf 后即可选择。
                     </p>
                   )}
                 </div>

@@ -1,7 +1,7 @@
 import { generateAiText } from "@/lib/ai-client";
 import type { AiRuntimeConfig } from "@/lib/ai-config";
 import { buildFileQaPrompt, getSystemPrompt } from "@/lib/prompts";
-import { getRelevantContext, localFileAnswer } from "@/lib/rag";
+import { getRelevantContext, localFileAnswer, MIN_RELEVANCE_SCORE } from "@/lib/rag";
 import type { ChatMode } from "@/lib/types";
 import { getLastUserMessage, trimForPrompt } from "@/lib/utils";
 
@@ -82,6 +82,12 @@ export async function POST(req: Request) {
       if (!result) {
         return Response.json({ error: "未找到对应文件。" }, { status: 404 });
       }
+      if (result.maxScore < MIN_RELEVANCE_SCORE || !result.context.trim()) {
+        return Response.json({
+          answer: "资料不足：当前上传的资料中未找到与问题足够相关的内容。请尝试上传更多相关资料，或换一种方式提问。",
+          citations: []
+        });
+      }
       const normalizedConfig = body.aiConfig;
       const threshold = normalizedConfig?.localRelevanceThreshold ?? 0.08;
       const cloudFallback = normalizedConfig?.cloudFallback ?? true;
@@ -92,10 +98,8 @@ export async function POST(req: Request) {
         messages: [{ role: "user", content: trimForPrompt(prompt) }],
         temperature: 0.2
       });
-      if (!answer) {
-        return textStream(localFileAnswer(result.context, question));
-      }
-      return textStream(answer);
+      const finalAnswer = answer || localFileAnswer(result.context, question);
+      return Response.json({ answer: finalAnswer, citations: result.citations });
     }
 
     if (body.fileId && question) {

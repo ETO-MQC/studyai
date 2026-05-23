@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, Citation } from "@/lib/types";
 import { MessageBubble } from "./MessageBubble";
 
-export function ChatArea({ messages }: { messages: ChatMessage[] }) {
+export function ChatArea({
+  messages,
+  onCitationClick
+}: {
+  messages: ChatMessage[];
+  onCitationClick?: (citation: Citation) => void;
+}) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -30,7 +36,7 @@ export function ChatArea({ messages }: { messages: ChatMessage[] }) {
   return (
     <div className="lk-scrollbar mx-auto flex h-full w-full max-w-3xl flex-col gap-5 overflow-y-auto px-4 py-8 md:px-6">
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+        <MessageBubble key={message.id} message={message} onCitationClick={onCitationClick} />
       ))}
       <div ref={bottomRef} />
     </div>

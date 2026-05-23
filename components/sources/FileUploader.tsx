@@ -42,12 +42,12 @@ export function FileUploader({ activeFile, onUploaded }: FileUploaderProps) {
       <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border bg-neutral-50 px-4 py-10 text-center transition hover:bg-neutral-100">
         <Upload className="h-7 w-7 text-muted-foreground" />
         <span className="mt-3 text-sm font-medium text-foreground">
-          {loading ? "上传中..." : "上传 txt / md / csv 本地资料"}
+          {loading ? "上传中..." : "上传 txt / md / csv / pdf 本地资料"}
         </span>
         <span className="mt-1 text-xs text-muted-foreground">
           当前是内存索引，服务重启后会清空；适合本地知识库问答。
         </span>
-        <input className="sr-only" type="file" accept=".txt,.md,.csv" onChange={handleFile} />
+        <input className="sr-only" type="file" accept=".txt,.md,.csv,.pdf" onChange={handleFile} />
       </label>
       {activeFile && (
         <div className="flex items-center gap-3 rounded-md border border-border bg-background p-3">

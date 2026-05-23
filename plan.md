@@ -2,6 +2,65 @@
 
 ---
 
+## 2026-05-19 Sprint 7A — 资料来源与引用系统 MVP
+
+### 本轮用户目标
+
+将 RAG 从"只返回回答"升级为"可追溯来源的资料问答"。实现 SourceDocument/SourceChunk/Citation 类型、PDF 上传、citations 返回、前端引用卡片和资料阅读器侧边面板。
+
+### 已完成
+
+- [x] `lib/types.ts`：新增 SourceDocument、SourceChunk、Citation 类型；ChatMessage 增加可选 citations 字段。
+- [x] `lib/rag.ts`：ChunkRecord 增加 chunkIndex/locator；FileRecord 增加 mimeType/createdAt；getRelevantContext 返回 citations 数组；新增 MIN_RELEVANCE_SCORE 阈值（0.05）；新增 addPdfPagesToStore、listSourceDocuments、getSourceDocument、getSourceChunks。
+- [x] `app/api/rag/upload/route.ts`：支持 PDF 上传（pdf-parse v1.1.1），按页提取文本；返回 SourceDocument；GET 返回 SourceDocument 列表。
+- [x] `app/api/rag/query/route.ts`：改为返回 JSON `{answer, citations}`；低于阈值时返回"资料不足"。
+- [x] `app/api/rag/source/route.ts`：新增 GET 接口，支持 sourceId + chunkIndex 查询，返回 document、focusChunk、nearbyChunks。
+- [x] `app/api/chat/route.ts`：file_qa 分支改为返回 JSON `{answer, citations}`；增加 MIN_RELEVANCE_SCORE 检查。
+- [x] `components/chat/MessageBubble.tsx`：渲染引用卡片列表（编号、fileName、locator、excerpt、score）；支持 onCitationClick。
+- [x] `components/chat/ChatArea.tsx`：传递 onCitationClick 给 MessageBubble。
+- [x] `components/sources/SourceReader.tsx`：新建右侧侧边面板，显示命中片段和上下文片段；支持"用此片段提问/生成笔记/生成测验"操作。
+- [x] `components/sources/FileUploader.tsx`：accept 增加 .pdf。
+- [x] `app/page.tsx`：file_qa 响应改为解析 JSON；集成 SourceReader 侧边面板和引用点击。
+
+### 改动文件
+
+| 文件 | 改动 |
+|------|------|
+| lib/types.ts | 新增 SourceDocument、SourceChunk、Citation；ChatMessage 增加 citations |
+| lib/rag.ts | 重构 chunk/file 数据结构；新增 source 查询函数；MIN_RELEVANCE_SCORE |
+| app/api/rag/upload/route.ts | PDF 支持；返回 SourceDocument |
+| app/api/rag/query/route.ts | JSON 响应；citations |
+| app/api/rag/source/route.ts | 新建 |
+| app/api/chat/route.ts | file_qa JSON 响应；citations |
+| components/chat/MessageBubble.tsx | 引用卡片渲染 |
+| components/chat/ChatArea.tsx | onCitationClick |
+| components/sources/SourceReader.tsx | 新建 |
+| components/sources/FileUploader.tsx | PDF accept |
+| app/page.tsx | citations 处理；SourceReader 集成 |
+| package.json | +pdf-parse@1.1.1, +@types/pdf-parse |
+
+### 验证结果
+
+- [x] `npm run typecheck` 通过。
+- [x] `npm run build` 通过，新增 /api/rag/source 路由。
+- [ ] 未做端到端手动上传/查询验证（需启动 dev server 后人工验证）。
+- [ ] 未验证 PDF 上传实际效果（需准备测试 PDF 文件）。
+
+### 未完成风险
+
+- file_qa 从流式改为 JSON 非流式，用户感知延迟可能增加（文件问答通常较短，可接受）。
+- pdf-parse 的 pagerender 是未文档化的内部 API，部分 PDF 可能不支持按页提取，会退化为全文单 chunk。
+- 内存存储仍无持久化，服务重启后数据丢失。
+- 词频向量精度有限，引用相关性可能不准。
+
+### 下一步
+
+1. 启动 dev server，手动验证：上传 txt/md → query 返回 citations → 聊天 file_qa 显示引用卡片 → 点击引用打开 SourceReader。
+2. 准备测试 PDF 文件验证 PDF 上传和按页提取。
+3. 后续 Sprint：持久化空间/历史/资料索引；笔记/测验/闪卡从引用片段生成；mindmap；学习计划。
+
+---
+
 ## 2026-05-11 可运行性验证与 LearnKata 学习功能差距
 
 ### 本轮用户目标

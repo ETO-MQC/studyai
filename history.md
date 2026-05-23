@@ -2,6 +2,47 @@
 
 ---
 
+## 2026-05-19 Sprint 7A — 资料来源与引用系统 MVP
+
+### 用户意图
+
+用户要求实现 Sprint 7A：把 RAG 从"只返回回答"升级为"可追溯来源的资料问答"。必须实现 SourceDocument/SourceChunk/Citation 类型、PDF 上传、citations 返回、前端引用卡片和资料阅读器。用户确认了方案并通过了具体调整：file_qa 改非流式、PDF 用 pdf-parse、SourceReader 用侧边面板。
+
+### 完成内容
+
+- 阅读 CLAUDE.md、plan.md、history.md 和所有 RAG/聊天相关代码，形成完整数据流理解。
+- 实现 11 个文件的改动：lib/types.ts、lib/rag.ts、upload/query/source/chat API、MessageBubble、ChatArea、SourceReader、FileUploader、page.tsx。
+- 安装 pdf-parse@1.1.1 和 @types/pdf-parse。
+- typecheck 和 build 均通过。
+
+### 关键决策
+
+- file_qa 从流式改为 JSON 非流式：citations 必须与回答一起返回，无法从纯文本流中分离。
+- PDF 用 pdf-parse v1.1.1（v2 API 不兼容）：pagerender 是未文档化内部 API，部分 PDF 可能退化为全文单 chunk。
+- MIN_RELEVANCE_SCORE = 0.05：低于阈值返回"资料不足"，不允许编造。
+- SourceReader 用右侧侧边面板（380px），桌面端显示，移动端暂不显示。
+- Citation 包含 chunkIndex，方便精确定位。
+
+### 验证结果
+
+- 通过：`npm run typecheck`、`npm run build`（含新 /api/rag/source 路由）。
+- 未验证：端到端手动上传/查询/citations 流程（需启动 dev server）。
+
+### 遗留问题
+
+1. 需手动验证完整流程：上传 → query → citations → 引用卡片 → SourceReader。
+2. PDF 按页提取依赖 pagerender 内部 API，稳定性待验证。
+3. 内存存储无持久化。
+4. 词频向量精度有限。
+
+### 下一步
+
+1. 启动 dev server 做端到端验证。
+2. 准备测试 PDF 文件。
+3. 后续 Sprint：持久化、笔记/测验从引用生成、mindmap、学习计划。
+
+---
+
 ## 2026-05-11 可运行性验证与学习功能差距梳理
 
 ### 用户意图
