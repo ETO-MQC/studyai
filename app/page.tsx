@@ -35,8 +35,10 @@ import { useEffect, useState } from "react";
 import { ChatArea } from "@/components/chat/ChatArea";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { FlashcardRenderer } from "@/components/modes/FlashcardRenderer";
+import { MindmapPanel } from "@/components/modes/MindmapPanel";
 import { NotesPanel } from "@/components/modes/NotesPanel";
 import { QuizRenderer } from "@/components/modes/QuizRenderer";
+import { StudyProgressPanel } from "@/components/modes/StudyProgressPanel";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { FileUploader } from "@/components/sources/FileUploader";
 import { SourceReader } from "@/components/sources/SourceReader";
@@ -53,16 +55,27 @@ import type {
   ChatMessage,
   ChatMode,
   Citation,
+  FlashcardReviewRecord,
   FlashcardPayload,
+  MindmapPayload,
+  QuizAnswerRecord,
   QuizPayload,
+  SourceDocument,
   SourceFile,
-  Space
+  Space,
+  StudyProgress
 } from "@/lib/types";
 import { cn, newId } from "@/lib/utils";
 
 type AppView = "chat" | "history" | "sources" | "spaces" | "settings";
 
 const USERNAME_STORAGE_KEY = "learnkata-username";
+const APP_STATE_STORAGE_KEY = "learnkata-app-state";
+
+const initialStudyProgress: StudyProgress = {
+  quizAnswers: {},
+  flashcards: {}
+};
 
 const initialSpaces: Space[] = [
   {
@@ -100,6 +113,37 @@ async function readTextStream(response: Response, onChunk: (chunk: string) => vo
   }
 }
 
+function sourceDocumentToFile(document: SourceDocument): SourceFile {
+  return {
+    fileId: document.sourceId,
+    name: document.fileName,
+    chunkCount: document.chunkCount
+  };
+}
+
+function buildMindmapPayload(source: string, citation?: Citation): MindmapPayload {
+  const lines = source
+    .split(/\n+/)
+    .map((line) => line.trim().replace(/^[-*#\d.\s]+/, ""))
+    .filter(Boolean)
+    .slice(0, 9);
+  const rootTitle = lines[0] || "当前资料";
+  const branches = lines.slice(1).length ? lines.slice(1) : ["核心概念", "关键例子", "复习问题"];
+  return {
+    root: {
+      id: newId("mind"),
+      title: rootTitle,
+      sourceCitation: citation,
+      children: branches.map((branch) => ({
+        id: newId("mind"),
+        title: branch,
+        sourceCitation: citation,
+        children: []
+      }))
+    }
+  };
+}
+
 export default function Page() {
   const [view, setView] = useState<AppView>("chat");
   const [mode, setMode] = useState<ChatMode>("chat");
@@ -111,6 +155,8 @@ export default function Page() {
   const [quiz, setQuiz] = useState<QuizPayload | null>(null);
   const [flashcards, setFlashcards] = useState<FlashcardPayload | null>(null);
   const [notesSource, setNotesSource] = useState("");
+  const [mindmap, setMindmap] = useState<MindmapPayload | null>(null);
+  const [studyProgress, setStudyProgress] = useState<StudyProgress>(initialStudyProgress);
   const [newSpaceOpen, setNewSpaceOpen] = useState(false);
   const [spaces, setSpaces] = useState<Space[]>(initialSpaces);
   const [aiConfig, setAiConfig] = useState<AiRuntimeConfig>(DEFAULT_AI_CONFIG);
@@ -118,6 +164,7 @@ export default function Page() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [username, setUsername] = useState("mqcingetooo1");
   const [readerCitation, setReaderCitation] = useState<Citation | null>(null);
+  const [stateReady, setStateReady] = useState(false);
 
   useEffect(() => {
     function readConfig() {
@@ -152,6 +199,88 @@ export default function Page() {
     }
   }, []);
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(APP_STATE_STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          messages?: ChatMessage[];
+          spaces?: Space[];
+          quiz?: QuizPayload | null;
+          flashcards?: FlashcardPayload | null;
+          notesSource?: string;
+          mindmapSource?: string;
+          mindmap?: MindmapPayload | null;
+          studyProgress?: StudyProgress;
+          activeFile?: SourceFile | null;
+        };
+        if (Array.isArray(saved.messages)) setMessages(saved.messages);
+        if (Array.isArray(saved.spaces) && saved.spaces.length) setSpaces(saved.spaces);
+        if (saved.quiz) setQuiz(saved.quiz);
+        if (saved.flashcards) setFlashcards(saved.flashcards);
+        if (typeof saved.notesSource === "string") setNotesSource(saved.notesSource);
+        if (saved.mindmap) setMindmap(saved.mindmap);
+        if (!saved.mindmap && typeof saved.mindmapSource === "string" && saved.mindmapSource.trim()) {
+          setMindmap(buildMindmapPayload(saved.mindmapSource));
+        }
+        if (saved.studyProgress) {
+          setStudyProgress({
+            quizAnswers: saved.studyProgress.quizAnswers ?? {},
+            flashcards: saved.studyProgress.flashcards ?? {}
+          });
+        }
+        if (saved.activeFile) setActiveFile(saved.activeFile);
+      }
+    } catch {
+      // Ignore corrupt local state and keep the default in-memory state.
+    } finally {
+      setStateReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSources() {
+      try {
+        const response = await fetch("/api/rag/upload");
+        const data = (await response.json()) as { files?: SourceDocument[] };
+        if (!response.ok || cancelled) return;
+        const restored = (data.files ?? []).map(sourceDocumentToFile);
+        setSources(restored);
+        setActiveFile((current) => current ?? restored[0] ?? null);
+      } catch {
+        // Source list is best-effort; upload and chat still work without it.
+      }
+    }
+
+    loadSources();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!stateReady) return;
+    try {
+      window.localStorage.setItem(
+        APP_STATE_STORAGE_KEY,
+        JSON.stringify({
+          messages,
+          spaces,
+          quiz,
+          flashcards,
+          notesSource,
+          mindmap,
+          studyProgress,
+          activeFile
+        })
+      );
+    } catch {
+      // localStorage quota/private-mode failures should not break the session.
+    }
+  }, [activeFile, flashcards, messages, mindmap, notesSource, quiz, spaces, stateReady, studyProgress]);
+
   function updateUsername(value: string) {
     const next = value.trim() || "学习者";
     setUsername(next);
@@ -165,6 +294,7 @@ export default function Page() {
   function resetModeArtifacts() {
     setQuiz(null);
     setFlashcards(null);
+    setMindmap(null);
   }
 
   function handleUploaded(file: SourceFile) {
@@ -179,6 +309,7 @@ export default function Page() {
     setQuiz(null);
     setFlashcards(null);
     setNotesSource("");
+    setMindmap(null);
     setView("chat");
     setMode("chat");
   }
@@ -335,7 +466,29 @@ export default function Page() {
     }
   }
 
-  const hasStudyPanel = quiz || flashcards || notesSource;
+  function recordQuizAnswer(key: string, record: QuizAnswerRecord) {
+    setStudyProgress((current) => ({
+      ...current,
+      quizAnswers: {
+        ...current.quizAnswers,
+        [key]: record
+      }
+    }));
+  }
+
+  function recordFlashcardReview(key: string, record: FlashcardReviewRecord) {
+    setStudyProgress((current) => ({
+      ...current,
+      flashcards: {
+        ...current.flashcards,
+        [key]: record
+      }
+    }));
+  }
+
+  const hasProgress =
+    Object.keys(studyProgress.quizAnswers).length > 0 || Object.keys(studyProgress.flashcards).length > 0;
+  const hasStudyPanel = quiz || flashcards || notesSource || mindmap || hasProgress;
 
   return (
     <main className="flex min-h-dvh w-full bg-background text-foreground">
@@ -406,9 +559,21 @@ export default function Page() {
                   <p className="text-xs font-medium uppercase text-muted-foreground">Study Panel</p>
                   <h2 className="text-lg font-semibold text-foreground">学习结果</h2>
                 </div>
-                <QuizRenderer payload={quiz} />
-                <FlashcardRenderer payload={flashcards} />
+                <StudyProgressPanel progress={studyProgress} />
+                <QuizRenderer payload={quiz} answers={studyProgress.quizAnswers} onAnswer={recordQuizAnswer} />
+                <FlashcardRenderer
+                  payload={flashcards}
+                  reviews={studyProgress.flashcards}
+                  onReview={recordFlashcardReview}
+                />
                 {notesSource && <NotesPanel source={notesSource} />}
+                {mindmap && (
+                  <MindmapPanel
+                    payload={mindmap}
+                    onChange={setMindmap}
+                    onOpenSource={(citation) => setReaderCitation(citation)}
+                  />
+                )}
               </aside>
             )}
 
@@ -430,6 +595,15 @@ export default function Page() {
                   onGenerateQuiz={(text) => {
                     setMode("quiz");
                     setInput(`请基于以下内容出一组测验：\n\n${text}`);
+                    setReaderCitation(null);
+                  }}
+                  onGenerateFlashcards={(text) => {
+                    setMode("flashcard");
+                    setInput(`请基于以下内容生成复习卡片：\n\n${text}`);
+                    setReaderCitation(null);
+                  }}
+                  onGenerateMindmap={(text) => {
+                    setMindmap(buildMindmapPayload(text, readerCitation));
                     setReaderCitation(null);
                   }}
                 />

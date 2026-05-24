@@ -20,6 +20,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Local app data
+.learnkata-store/
+
 # Package manager caches
 .npm-cache/
 .yarn/cache/

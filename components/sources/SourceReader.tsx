@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, MessageSquare, PenLine, X, ClipboardList } from "lucide-react";
+import { ClipboardList, FileText, GitFork, Layers, MessageSquare, PenLine, X } from "lucide-react";
 import type { Citation, SourceChunk, SourceDocument } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,8 @@ interface SourceReaderProps {
   onAsk?: (text: string) => void;
   onGenerateNotes?: (text: string) => void;
   onGenerateQuiz?: (text: string) => void;
+  onGenerateFlashcards?: (text: string) => void;
+  onGenerateMindmap?: (text: string) => void;
 }
 
 interface SourceResponse {
@@ -20,7 +22,15 @@ interface SourceResponse {
   chunks: SourceChunk[];
 }
 
-export function SourceReader({ citation, onClose, onAsk, onGenerateNotes, onGenerateQuiz }: SourceReaderProps) {
+export function SourceReader({
+  citation,
+  onClose,
+  onAsk,
+  onGenerateNotes,
+  onGenerateQuiz,
+  onGenerateFlashcards,
+  onGenerateMindmap
+}: SourceReaderProps) {
   const [data, setData] = useState<SourceResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -148,6 +158,22 @@ export function SourceReader({ citation, onClose, onAsk, onGenerateNotes, onGene
           >
             <ClipboardList className="h-3.5 w-3.5" />
             生成测验
+          </Button>
+          <Button
+            variant="secondary"
+            className="gap-1.5 text-xs"
+            onClick={() => onGenerateFlashcards?.(focusText)}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            生成卡片
+          </Button>
+          <Button
+            variant="secondary"
+            className="gap-1.5 text-xs"
+            onClick={() => onGenerateMindmap?.(focusText)}
+          >
+            <GitFork className="h-3.5 w-3.5" />
+            生成图谱
           </Button>
         </div>
       </div>

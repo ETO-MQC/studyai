@@ -3,7 +3,7 @@
 import { ChangeEvent, useState } from "react";
 import { FileText, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import type { SourceFile } from "@/lib/types";
+import type { SourceDocument, SourceFile } from "@/lib/types";
 
 interface FileUploaderProps {
   activeFile: SourceFile | null;
@@ -26,9 +26,13 @@ export function FileUploader({ activeFile, onUploaded }: FileUploaderProps) {
         method: "POST",
         body: form
       });
-      const data = (await response.json()) as SourceFile & { error?: string };
+      const data = (await response.json()) as SourceDocument & { error?: string };
       if (!response.ok) throw new Error(data.error || "上传失败");
-      onUploaded(data);
+      onUploaded({
+        fileId: data.sourceId,
+        name: data.fileName,
+        chunkCount: data.chunkCount
+      });
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "上传失败");
     } finally {

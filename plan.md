@@ -2,6 +2,85 @@
 
 ---
 
+## 2026-05-24 Sprint 7C - 学习进度/复习调度与可编辑 Mindmap
+
+### 本轮用户目标
+
+用户明确要求优先完成两项：完整学习进度/错题/复习调度，以及 mindmap 节点编辑与来源跳转。实现范围限定为当前本地优先架构下可运行、可持久化、可验证的 MVP。
+
+### 已完成
+
+- [x] `lib/types.ts`：新增 `StudyProgress`、`QuizAnswerRecord`、`FlashcardReviewRecord`、`FlashcardReviewStatus`、`MindmapNode`、`MindmapPayload` 类型。
+- [x] `components/modes/QuizRenderer.tsx`：测验答题从组件内临时状态升级为回传主页面的持久化答题记录，记录选择、正确答案、是否正确、解析和答题时间。
+- [x] `components/modes/FlashcardRenderer.tsx`：卡片增加“再练/已掌握”复习操作，记录复习状态、复习时间和下一次到期时间；“再练”为 10 分钟后复习，“已掌握”为 1 天后复习。
+- [x] `components/modes/StudyProgressPanel.tsx`：新增学习进度面板，显示测验正确率、错题数量、待复习卡片数量、已掌握卡片数量，并列出近期错题和待复习卡片。
+- [x] `components/modes/MindmapPanel.tsx`：mindmap 从只读文本树升级为可编辑节点树，支持编辑标题、添加子节点、删除子节点、折叠/展开，并在节点保留来源引用时可打开来源。
+- [x] `app/page.tsx`：新增 `studyProgress` 和 `mindmap` 状态，纳入 `localStorage` 持久化；SourceReader 生成图谱时把当前 citation 写入节点，实现图谱节点跳回来源阅读器。
+
+### 验证结果
+
+- [x] `npm.cmd run typecheck` 通过。
+- [x] `npm.cmd run build` 通过。
+- [x] 本地生产服务 HTTP 检查通过：`http://localhost:3000` 返回 200，并包含 Next 页面内容。
+
+### 本轮未覆盖
+
+- [ ] 未做浏览器截图级交互验证：本轮仍未暴露 Browser 插件的可执行入口。
+- [ ] 复习调度目前是本地时间到期计算和列表展示，还没有提醒通知、每日任务队列或服务端调度。
+- [ ] 学习进度仍保存在浏览器 `localStorage`，不是多用户数据库级持久化。
+- [ ] mindmap 来源跳转依赖从 SourceReader 引用片段生成的图谱；手动创建的新节点会继承父节点来源，但普通文本生成的图谱没有来源引用。
+
+### 下一步
+
+1. 做浏览器桌面/移动端交互检查：答题、卡片复习、错题展示、节点编辑、来源跳转。
+2. 增加“今日复习”独立视图，按 `dueAt` 汇总卡片并支持一键开始复习。
+3. 为 mindmap 增加重新生成、节点拖拽排序和多来源节点。
+4. 评估将 `localStorage` 学习进度迁移到本地 JSON 或轻量数据库。
+
+---
+
+## 2026-05-24 Sprint 7B - 本地持久化与来源学习产物 MVP
+
+### 本轮用户目标
+
+继续完成 `plan.md` 中未完成内容，但要求先判断风险、只做必要代码改动、不要乱改。由于阶段 7 全量范围包含音频/YouTube/LMS/OAuth/完整学习调度等大功能，本轮优先落地当前代码架构内可完整验证的核心学习闭环切片：资料索引持久化、刷新/重启恢复、从引用片段继续生成学习产物、mindmap MVP。
+
+### 已完成
+
+- [x] `lib/rag.ts`：将 RAG 资料索引从纯内存升级为本地 JSON 持久化，存储路径为 `.learnkata-store/rag-store.json`；服务启动后查询/列表/来源读取会按需加载并重建向量。
+- [x] `.gitignore`：忽略 `.learnkata-store/`，避免本地学习资料和索引进入版本控制。
+- [x] `components/sources/FileUploader.tsx`：修复上传接口返回 `SourceDocument` 后前端仍按旧 `SourceFile` 字段读取的问题。
+- [x] `app/page.tsx`：页面加载时调用 `/api/rag/upload` 恢复已持久化资料列表，并自动选择可用资料。
+- [x] `app/page.tsx`：将聊天消息、学习空间、当前资料、测验、卡片、笔记和图谱来源保存到 `localStorage`，刷新页面后可恢复。
+- [x] `components/sources/SourceReader.tsx`：引用片段操作增加“生成卡片”和“生成图谱”，补齐从同一资料片段生成更多学习产物的入口。
+- [x] `components/modes/MindmapPanel.tsx`：新增轻量知识图谱/mindmap MVP，根据资料片段生成根节点和分支节点。
+
+### 验证结果
+
+- [x] `npm.cmd run typecheck` 通过。
+- [x] `npm.cmd run build` 通过。
+- [x] 本地生产服务 HTTP 冒烟通过：`/` 返回 200。
+- [x] RAG API 最小链路通过：上传 txt -> GET 来源列表 -> query 返回 citations -> source 返回 focusChunk 和 chunks。
+- [x] 重启服务后 GET 来源列表仍能恢复测试资料，证明 `.learnkata-store/rag-store.json` 持久化加载生效。
+- [x] 冒烟测试产生的 `codex-rag-smoke.txt` 索引只包含测试数据，已按明确文件路径删除 `.learnkata-store/rag-store.json`，未做批量删除。
+
+### 本轮未覆盖
+
+- [ ] 未做浏览器像素级截图检查：Browser 插件的 Node REPL 执行入口本轮未暴露，已用 HTTP/API 验证替代。
+- [ ] 未实现音频、YouTube、网页抓取、LMS/OAuth 集成。
+- [ ] 未实现服务端持久化聊天历史或多用户数据库；本轮聊天/学习产物持久化仍是浏览器 `localStorage`。
+- [ ] mindmap 仍是轻量树状 MVP，尚未支持节点展开、编辑、重新生成和跳回具体来源高亮。
+- [ ] 测验答题正确率、错题本、间隔复习调度尚未持久化。
+
+### 下一步
+
+1. 做浏览器桌面/移动端视觉检查，重点看学习面板、SourceReader 新按钮和图谱布局。
+2. 将测验答题结果、卡片翻面/掌握状态保存为学习进度数据。
+3. 为 mindmap 增加节点来源引用、重新生成和展开/折叠交互。
+4. 设计轻量数据库或 JSON 分文件结构，逐步替代仅浏览器端的历史/空间/学习结果持久化。
+
+---
+
 ## 2026-05-19 Sprint 7A — 资料来源与引用系统 MVP
 
 ### 本轮用户目标

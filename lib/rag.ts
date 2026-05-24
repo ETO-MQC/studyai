@@ -1,5 +1,7 @@
 import type { Citation, SourceChunk, SourceDocument } from "./types";
 import { newId } from "./utils";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 
 export const MIN_RELEVANCE_SCORE = 0.05;
 
@@ -19,6 +21,23 @@ interface FileRecord {
 }
 
 const files = new Map<string, FileRecord>();
+const STORE_DIR = path.join(process.cwd(), ".learnkata-store");
+const STORE_FILE = path.join(STORE_DIR, "rag-store.json");
+let storeLoaded = false;
+
+interface PersistedChunk {
+  text: string;
+  chunkIndex: number;
+  locator: string;
+}
+
+interface PersistedFile {
+  fileId: string;
+  name: string;
+  mimeType: string;
+  createdAt: number;
+  chunks: PersistedChunk[];
+}
 
 const TOKEN_RE = /[\p{L}\p{N}]+/gu;
 
@@ -32,6 +51,49 @@ function vectorize(text: string) {
     vector.set(token, (vector.get(token) ?? 0) + 1);
   }
   return vector;
+}
+
+function loadStore() {
+  if (storeLoaded) return;
+  storeLoaded = true;
+
+  try {
+    const raw = readFileSync(STORE_FILE, "utf8");
+    const parsed = JSON.parse(raw) as { files?: PersistedFile[] };
+    for (const file of parsed.files ?? []) {
+      files.set(file.fileId, {
+        ...file,
+        chunks: file.chunks.map((chunk) => ({
+          ...chunk,
+          vector: vectorize(chunk.text)
+        }))
+      });
+    }
+  } catch {
+    // Missing or unreadable local store should not block the app; new uploads will recreate it.
+  }
+}
+
+function saveStore() {
+  try {
+    mkdirSync(STORE_DIR, { recursive: true });
+    const payload: { files: PersistedFile[] } = {
+      files: [...files.values()].map((file) => ({
+        fileId: file.fileId,
+        name: file.name,
+        mimeType: file.mimeType,
+        createdAt: file.createdAt,
+        chunks: file.chunks.map(({ text, chunkIndex, locator }) => ({
+          text,
+          chunkIndex,
+          locator
+        }))
+      }))
+    };
+    writeFileSync(STORE_FILE, JSON.stringify(payload, null, 2), "utf8");
+  } catch {
+    // RAG still works in memory if the local JSON store cannot be written.
+  }
 }
 
 function cosine(a: Map<string, number>, b: Map<string, number>) {
@@ -66,6 +128,7 @@ export function addFileToStore(
   text: string,
   mimeType = "text/plain"
 ): SourceDocument {
+  loadStore();
   const fileId = newId("file");
   const createdAt = Date.now();
   const rawChunks = splitTextIntoChunks(text);
@@ -77,6 +140,7 @@ export function addFileToStore(
   }));
   const record: FileRecord = { fileId, name, mimeType, createdAt, chunks };
   files.set(fileId, record);
+  saveStore();
   return {
     sourceId: fileId,
     fileName: name,
@@ -90,6 +154,7 @@ export function addPdfPagesToStore(
   name: string,
   pages: Array<{ page: number; text: string }>
 ): SourceDocument {
+  loadStore();
   const fileId = newId("file");
   const createdAt = Date.now();
   const mimeType = "application/pdf";
@@ -108,6 +173,7 @@ export function addPdfPagesToStore(
   }
   const record: FileRecord = { fileId, name, mimeType, createdAt, chunks };
   files.set(fileId, record);
+  saveStore();
   return {
     sourceId: fileId,
     fileName: name,
@@ -118,6 +184,7 @@ export function addPdfPagesToStore(
 }
 
 export function listFiles() {
+  loadStore();
   return [...files.values()].map((file) => ({
     fileId: file.fileId,
     name: file.name,
@@ -126,6 +193,7 @@ export function listFiles() {
 }
 
 export function listSourceDocuments(): SourceDocument[] {
+  loadStore();
   return [...files.values()].map((file) => ({
     sourceId: file.fileId,
     fileName: file.name,
@@ -136,6 +204,7 @@ export function listSourceDocuments(): SourceDocument[] {
 }
 
 export function getSourceDocument(sourceId: string): SourceDocument | null {
+  loadStore();
   const file = files.get(sourceId);
   if (!file) return null;
   return {
@@ -151,6 +220,7 @@ export function getSourceChunks(
   sourceId: string,
   chunkIndex?: number
 ): { document: SourceDocument; focusChunk: SourceChunk | null; nearbyChunks: SourceChunk[] } | null {
+  loadStore();
   const file = files.get(sourceId);
   if (!file) return null;
 
@@ -196,6 +266,7 @@ export function getRelevantContext(
   question: string,
   topK = 4
 ): { context: string; maxScore: number; citations: Citation[] } | null {
+  loadStore();
   const file = files.get(fileId);
   if (!file) return null;
   const queryVector = vectorize(question);

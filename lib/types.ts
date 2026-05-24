@@ -40,6 +40,42 @@ export interface FlashcardPayload {
   cards: Flashcard[];
 }
 
+export type FlashcardReviewStatus = "again" | "known";
+
+export interface QuizAnswerRecord {
+  question: string;
+  selected: string;
+  answer: string;
+  correct: boolean;
+  explanation: string;
+  answeredAt: number;
+}
+
+export interface FlashcardReviewRecord {
+  front: string;
+  back: string;
+  status: FlashcardReviewStatus;
+  reviewedAt: number;
+  dueAt: number;
+}
+
+export interface StudyProgress {
+  quizAnswers: Record<string, QuizAnswerRecord>;
+  flashcards: Record<string, FlashcardReviewRecord>;
+}
+
+export interface MindmapNode {
+  id: string;
+  title: string;
+  children: MindmapNode[];
+  collapsed?: boolean;
+  sourceCitation?: Citation;
+}
+
+export interface MindmapPayload {
+  root: MindmapNode;
+}
+
 export interface SourceFile {
   fileId: string;
   name: string;
